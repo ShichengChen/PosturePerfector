@@ -21,11 +21,12 @@ cv2.namedWindow('MediaPipe Pose', cv2.WINDOW_NORMAL)
 # Initialize variables
 avg_eye_level = 0
 avg_nose_level = 0
-fixed_baseline = 0
 num_frames = 0
 threshold = 0.05
 start_time = None
-use_fixed_baseline = False  # New Variable
+use_fixed_levels = False
+fixed_eye_level = None
+fixed_nose_level = None
 
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
     while cap.isOpened():
@@ -50,28 +51,40 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 avg_nose_level = current_nose_level
                 num_frames = 1
                 start_time = time.time()
-            elif current_eye_level <= avg_eye_level + threshold and current_nose_level <= avg_nose_level + threshold:
+            else:
                 num_frames += 1
                 avg_eye_level = (avg_eye_level * (num_frames - 1) + current_eye_level) / num_frames
                 avg_nose_level = (avg_nose_level * (num_frames - 1) + current_nose_level) / num_frames
+            if use_fixed_levels and current_eye_level <= fixed_eye_level + threshold and current_nose_level <= fixed_nose_level + threshold:
+                start_time = time.time()
+            if not use_fixed_levels and current_eye_level <= avg_eye_level + threshold and current_nose_level <= avg_nose_level + threshold:
                 start_time = time.time()
 
-            if use_fixed_baseline:
-                baseline_y = fixed_baseline
-            else:
-                baseline_y = int(avg_eye_level * frame.shape[0])
-                fixed_baseline = baseline_y
+            comparison_eye_level = fixed_eye_level if use_fixed_levels else avg_eye_level
+            comparison_nose_level = fixed_nose_level if use_fixed_levels else avg_nose_level
 
-            threshold_y = int((avg_eye_level + threshold) * frame.shape[0])
 
-            cv2.line(frame, (0, baseline_y), (frame.shape[1], baseline_y), (255, 0, 0), 2)
-            cv2.line(frame, (0, threshold_y), (frame.shape[1], threshold_y), (0, 0, 255), 2)
+            # Draw separate baseline and threshold lines for eyes and nose
+            def draw_lines(y_value, color, label):
+                y_pixel = int(y_value * frame.shape[0])
+                cv2.line(frame, (0, y_pixel), (frame.shape[1], y_pixel), color, 2)
+                cv2.putText(frame, label, (10, y_pixel - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
-            cv2.putText(frame, "Baseline", (10, baseline_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-            cv2.putText(frame, "Threshold", (10, threshold_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
-            if current_eye_level > avg_eye_level + threshold or current_nose_level > avg_nose_level + threshold:
-                if time.time() - start_time >= 2:
+            # Eye lines
+            draw_lines(comparison_eye_level, (255, 0, 0), "Eye Baseline")
+            draw_lines(comparison_eye_level + threshold, (0, 0, 255), "Eye Threshold")
+
+            # Nose lines
+            draw_lines(comparison_nose_level, (0, 255, 0), "Nose Baseline")
+            draw_lines(comparison_nose_level + threshold, (0, 255, 255), "Nose Threshold")
+
+            # Add captions
+            cv2.putText(frame, "Using Fixed Levels" if use_fixed_levels else "Using Moving Average", (frame.shape[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+            # Check if threshold is crossed for more than 1 second
+            if current_eye_level > comparison_eye_level + threshold or current_nose_level > comparison_nose_level + threshold:
+                if time.time() - start_time >= 1:  # 1 seconds
                     sd.play(x, fs)
 
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
@@ -81,10 +94,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         if key & 0xFF == ord('q'):
             break
         elif key & 0xFF == ord('t'):
-            fixed_baseline = int(current_eye_level * frame.shape[0])
-            use_fixed_baseline = True
+            fixed_eye_level = avg_eye_level
+            fixed_nose_level = avg_nose_level
+            use_fixed_levels = True
         elif key & 0xFF == ord('r'):
-            use_fixed_baseline = False
+            use_fixed_levels = False
 
 cap.release()
 cv2.destroyAllWindows()
