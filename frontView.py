@@ -64,7 +64,6 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             comparison_nose_level = fixed_nose_level if use_fixed_levels else avg_nose_level
 
 
-            # Draw separate baseline and threshold lines for eyes and nose
             def draw_lines(y_value, color, label):
                 y_pixel = int(y_value * frame.shape[0])
                 cv2.line(frame, (0, y_pixel), (frame.shape[1], y_pixel), color, 2)
@@ -99,6 +98,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             use_fixed_levels = True
         elif key & 0xFF == ord('r'):
             use_fixed_levels = False
+            avg_eye_level = current_eye_level
+            avg_nose_level = current_nose_level
+            num_frames = 1
+            start_time = time.time()
 
 cap.release()
 cv2.destroyAllWindows()
