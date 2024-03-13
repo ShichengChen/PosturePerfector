@@ -2,8 +2,13 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import sounddevice as sd
-import time
+import time,os,subprocess
+from plyer import notification  # Install using 'pip install plyer'
 
+# Function to display macOS notification
+def send_notification(title, message):
+    script = f'display notification "{message}" with title "{title}"'
+    os.system(f"osascript -e '{script}'")
 # Generate a simple beep sound
 fs = 44100
 seconds = 0.5
@@ -84,7 +89,21 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             # Check if threshold is crossed for more than 1 second
             if current_eye_level > comparison_eye_level + threshold or current_nose_level > comparison_nose_level + threshold:
                 if time.time() - start_time >= 1:  # 1 seconds
-                    sd.play(x, fs)
+                    # sd.play(x, fs)
+
+                    send_notification("Pose Alert", "Your posture needs correction!")
+
+                    cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                    cv2.waitKey(500)  # Wait for 0.5 seconds
+                    cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+
+                    # notification.notify(
+                    #     title="Posture Reminder",
+                    #     message="Please adjust your posture",
+                    #     app_name="Posture Checker",
+                    #     timeout=5  # Display for 5 seconds
+                    # ) not work
+
 
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
