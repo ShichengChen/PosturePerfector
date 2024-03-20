@@ -3,7 +3,6 @@ import mediapipe as mp
 import numpy as np
 import sounddevice as sd
 import time,os,subprocess
-from plyer import notification  # Install using 'pip install plyer'
 
 # Function to display macOS notification
 def send_notification(title, message):
