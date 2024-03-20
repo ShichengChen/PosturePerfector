@@ -99,7 +99,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             # Add captions
             cv2.putText(frame, "Using Fixed Levels" if use_fixed_levels else "Using Moving Average", (frame.shape[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-
+            cv2.putText(frame, "Eye angle: {:.1f}".format(angle_deg), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
             # Check if threshold is crossed for more than 1 second
             if current_eye_level > comparison_eye_level + threshold or current_nose_level > comparison_nose_level + threshold:
                 if time.time() - start_time >= 2:  # 1 seconds
@@ -113,15 +113,7 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             if abs(angle_deg) > 20:
                 # To prevent spamming, check if 5 seconds have passed since the last notification
-                if time.time() - last_action_time > action_interval:
-                    send_notification("Balance Head", "Please balance your head!")
-                    last_action_time = time.time()
-                    # notification.notify(
-                    #     title="Posture Reminder",
-                    #     message="Please adjust your posture",
-                    #     app_name="Posture Checker",
-                    #     timeout=5  # Display for 5 seconds
-                    # ) not work
+                send_notification("Balance Head", "Please balance your head!")
 
 
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
