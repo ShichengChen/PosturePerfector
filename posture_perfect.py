@@ -110,9 +110,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                         cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
                         last_action_time = time.time()  # Update the time of the last action
 
-            if abs(angle_deg) > 20:
+            if abs(angle_deg) > 10:
                 # To prevent spamming, check if 5 seconds have passed since the last notification
-                send_notification("Balance Head", "Please balance your head!")
+                send_notification("Balance Head", f"Please balance your head for better posture! Current angle: {angle_deg:.1f} degrees")
 
 
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
