@@ -1,7 +1,6 @@
 # Posture Perfect
 
-`Posture Perfect` is a Python application designed to help you maintain a good posture while sitting in front of your computer. It utilizes computer vision techniques, with the help of the OpenCV and MediaPipe libraries, to track your posture in real time. When the application detects that your posture deviates from an acceptable range, it sends a notification and plays a sound alert to remind you to correct your posture.
-
+`Posture Perfect` is a Python application crafted to assist you in maintaining optimal head posture while sitting at your computer. Employing computer vision technology with the support of OpenCV and MediaPipe libraries, it tracks your head position in real time. Whenever the application identifies a deviation from the ideal head alignment, it alerts you with a notification and a sound alert, prompting you to adjust your head posture for better ergonomics."
 ## Features
 
 - Real-time posture tracking using your webcam.
