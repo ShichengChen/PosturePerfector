@@ -29,6 +29,8 @@ avg_nose_level = 0
 num_frames = 0
 threshold = 0.05
 start_time = None
+action_interval = 5  # Minimum number of seconds between actions
+last_action_time = time.time() - action_interval*2  # Initialize to a time far enough in the past
 use_fixed_levels = False
 fixed_eye_level = None
 fixed_nose_level = None
@@ -38,15 +40,26 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
         ret, frame = cap.read()
         if not ret:
             continue
+        frame = cv2.flip(frame, 1)
 
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = pose.process(rgb_image)
 
         if results.pose_landmarks:
+            visible_keypoints = sum([1 for landmark in results.pose_landmarks.landmark if landmark.visibility > 0.5])
+
+            if visible_keypoints <= 1:  # Skip if no person is detected
+                continue
+
             landmarks = results.pose_landmarks.landmark
             left_eye_y = landmarks[mp_pose.PoseLandmark.LEFT_EYE_INNER.value].y
             right_eye_y = landmarks[mp_pose.PoseLandmark.RIGHT_EYE_INNER.value].y
             nose_y = landmarks[mp_pose.PoseLandmark.NOSE.value].y
+            left_eye = landmarks[mp_pose.PoseLandmark.LEFT_EYE_INNER.value]
+            right_eye = landmarks[mp_pose.PoseLandmark.RIGHT_EYE_INNER.value]
+            # Calculate angle in radians and then convert to degrees
+            angle_rad = np.arctan2(-(left_eye.y - right_eye.y), left_eye.x - right_eye.x)
+            angle_deg = np.degrees(angle_rad)
 
             current_eye_level = (left_eye_y + right_eye_y) / 2
             current_nose_level = nose_y
@@ -57,9 +70,10 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 num_frames = 1
                 start_time = time.time()
             else:
-                num_frames += 1
-                avg_eye_level = (avg_eye_level * (num_frames - 1) + current_eye_level) / num_frames
-                avg_nose_level = (avg_nose_level * (num_frames - 1) + current_nose_level) / num_frames
+                if time.time() - last_action_time > action_interval:
+                    num_frames += 1
+                    avg_eye_level = (avg_eye_level * (num_frames - 1) + current_eye_level) / num_frames
+                    avg_nose_level = (avg_nose_level * (num_frames - 1) + current_nose_level) / num_frames
             if use_fixed_levels and current_eye_level <= fixed_eye_level + threshold and current_nose_level <= fixed_nose_level + threshold:
                 start_time = time.time()
             if not use_fixed_levels and current_eye_level <= avg_eye_level + threshold and current_nose_level <= avg_nose_level + threshold:
@@ -88,15 +102,20 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
 
             # Check if threshold is crossed for more than 1 second
             if current_eye_level > comparison_eye_level + threshold or current_nose_level > comparison_nose_level + threshold:
-                if time.time() - start_time >= 1:  # 1 seconds
+                if time.time() - start_time >= 2:  # 1 seconds
                     # sd.play(x, fs)
+                    if time.time() - last_action_time > action_interval:
+                        send_notification("Pose Alert", "Your posture needs correction!")
+                        cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+                        cv2.waitKey(1000)  # Wait for 1 seconds
+                        cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+                        last_action_time = time.time()  # Update the time of the last action
 
-                    send_notification("Pose Alert", "Your posture needs correction!")
-
-                    cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                    cv2.waitKey(500)  # Wait for 0.5 seconds
-                    cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-
+            if abs(angle_deg) > 20:
+                # To prevent spamming, check if 5 seconds have passed since the last notification
+                if time.time() - last_action_time > action_interval:
+                    send_notification("Balance Head", "Please balance your head!")
+                    last_action_time = time.time()
                     # notification.notify(
                     #     title="Posture Reminder",
                     #     message="Please adjust your posture",
