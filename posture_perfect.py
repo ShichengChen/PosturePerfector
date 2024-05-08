@@ -13,7 +13,7 @@ fs = 44100
 seconds = 0.5
 t = np.linspace(0, np.pi * 2, int(fs * seconds), endpoint=False)
 x = 0.5 * np.sin(440 * 2 * np.pi * t)
-
+stableLine=True
 # Initialize MediaPipe
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -29,8 +29,10 @@ num_frames = 0
 threshold = 0.05
 start_time = None
 action_interval = 5  # Minimum number of seconds between actions
-last_action_time = time.time() - action_interval*2  # Initialize to a time far enough in the past
+last_forward_time = time.time() - action_interval*2  # Initialize to a time far enough in the past
+last_rotate_time = time.time() - action_interval*2  # Initialize to a time far enough in the past
 use_fixed_levels = False
+headRotate=True
 fixed_eye_level = None
 fixed_nose_level = None
 
@@ -69,10 +71,13 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                 num_frames = 1
                 start_time = time.time()
             else:
-                if time.time() - last_action_time > action_interval:
+                if time.time() - last_forward_time > action_interval:
                     num_frames += 1
-                    avg_eye_level = (avg_eye_level * (num_frames - 1) + current_eye_level) / num_frames
-                    avg_nose_level = (avg_nose_level * (num_frames - 1) + current_nose_level) / num_frames
+                    if stableLine:
+                        pass
+                    else:
+                        avg_eye_level = (avg_eye_level * (num_frames - 1) + current_eye_level) / num_frames
+                        avg_nose_level = (avg_nose_level * (num_frames - 1) + current_nose_level) / num_frames
             if use_fixed_levels and current_eye_level <= fixed_eye_level + threshold and current_nose_level <= fixed_nose_level + threshold:
                 start_time = time.time()
             if not use_fixed_levels and current_eye_level <= avg_eye_level + threshold and current_nose_level <= avg_nose_level + threshold:
@@ -103,17 +108,18 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             if current_eye_level > comparison_eye_level + threshold or current_nose_level > comparison_nose_level + threshold:
                 if time.time() - start_time >= 2:  # 1 seconds
                     # sd.play(x, fs)
-                    if time.time() - last_action_time > action_interval:
+                    if time.time() - last_forward_time > action_interval:
                         send_notification("Pose Alert", "Your posture needs correction!")
                         cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
                         cv2.waitKey(1000)  # Wait for 1 seconds
                         cv2.setWindowProperty('MediaPipe Pose', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-                        last_action_time = time.time()  # Update the time of the last action
+                        last_forward_time = time.time()  # Update the time of the last action
 
-            if abs(angle_deg) > 10:
-                # To prevent spamming, check if 5 seconds have passed since the last notification
-                send_notification("Balance Head", f"Please balance your head for better posture! Current angle: {angle_deg:.1f} degrees")
-
+            if headRotate and abs(angle_deg) > 20:
+                if time.time() - last_rotate_time > action_interval:
+                    # To prevent spamming, check if 5 seconds have passed since the last notification
+                    send_notification("Balance Head", f"Please balance your head for better posture! Current angle: {angle_deg:.1f} degrees")
+                    last_rotate_time = time.time()
 
             mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
@@ -131,6 +137,11 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
             avg_nose_level = current_nose_level
             num_frames = 1
             start_time = time.time()
+        elif key & 0xFF == ord('f'):
+            headRotate = not headRotate
+        elif key & 0xFF == ord('s'):
+            stableLine = not stableLine
+
 
 cap.release()
 cv2.destroyAllWindows()
